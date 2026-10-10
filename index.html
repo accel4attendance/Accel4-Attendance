@@ -20,6 +20,12 @@ label{display:block;font-size:13px;font-weight:600;margin:17px 0 8px}input,selec
 body{zoom:var(--z)}
 .row-actions{display:flex;gap:8px;justify-content:flex-end}
 .btn-del{color:#b42318;border-color:#f0c4be}.btn-del:hover{background:#fef3f2}
+/* ---- Sign-in animation ---- */
+.btn-spin{display:inline-block;width:15px;height:15px;margin-right:10px;vertical-align:-2px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:a4spin .7s linear infinite}
+.login-card{position:relative;overflow:hidden}
+.login-card.busy::before{content:'';position:absolute;top:0;left:0;height:3px;width:40%;background:linear-gradient(90deg,#174890,#2a8be0);animation:a4bar 1.1s ease-in-out infinite}
+.login-card.busy input{opacity:.7;pointer-events:none}
+@keyframes a4bar{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
 /* ---- Page loading overlay ---- */
 #a4Loader{position:fixed;top:0;right:0;bottom:0;left:245px;z-index:60;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;background:rgba(245,247,250,.94);backdrop-filter:blur(2px)}
 #a4Loader.show{display:flex}
@@ -88,7 +94,7 @@ function post(a,p={}){return requestJson(API,{method:'POST',headers:{'Content-Ty
     +'<div style="'+grid+';border-bottom:0;font-weight:700"><span>Total</span><span style="text-align:right">'+fmt(tH)+'</span><span style="text-align:right">'+tL+'</span><span style="text-align:right">'+tN+'</span></div></div>';
 }
 function esc(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function msg(id,t,c=''){let e=document.getElementById(id);e.className='message '+c;e.textContent=t}
-async function login(){const username=document.getElementById('lu').value.trim(),password=document.getElementById('lp').value;if(!username||!password){msg('lm','Enter your username and password.','error');return}const b=document.querySelector('.login-card .btn');b.disabled=true;b.textContent='Signing in…';msg('lm','Signing in…');try{let r;try{r=await post('login',{username,password})}catch(postErr){r=await requestJson(API+'?'+new URLSearchParams({action:'login',username,password}),{method:'GET',cache:'no-store'})}if(!r||!r.ok){const se=new Error((r&&r.error)||'Invalid username or password.');se.server=true;throw se}if(r.mustChange){showFirstLogin(r.username||username,password,r.name);return}if(!r.token||!r.user){const ie=new Error('The server sent an incomplete sign-in response. Please make sure the latest Apps Script version is deployed, then refresh this page (Ctrl+F5) and try again.');ie.server=true;throw ie}token=r.token;currentUser=r.user;sessionStorage.setItem('a4t',token);sessionStorage.setItem('a4u',JSON.stringify(currentUser));enter(r)}catch(e){msg('lm',(e.server?'':'Cannot reach the Apps Script endpoint: ')+e.message,'error')}finally{b.disabled=false;b.textContent='Sign in'}}
+async function login(){const username=document.getElementById('lu').value.trim(),password=document.getElementById('lp').value;if(!username||!password){msg('lm','Enter your username and password.','error');return}const b=document.querySelector('.login-card .btn');b.disabled=true;b.innerHTML='<span class="btn-spin"></span>Signing in…';b.closest('.login-card').classList.add('busy');msg('lm','Signing in…');try{let r;try{r=await post('login',{username,password})}catch(postErr){r=await requestJson(API+'?'+new URLSearchParams({action:'login',username,password}),{method:'GET',cache:'no-store'})}if(!r||!r.ok){const se=new Error((r&&r.error)||'Invalid username or password.');se.server=true;throw se}if(r.mustChange){showFirstLogin(r.username||username,password,r.name);return}if(!r.token||!r.user){const ie=new Error('The server sent an incomplete sign-in response. Please make sure the latest Apps Script version is deployed, then refresh this page (Ctrl+F5) and try again.');ie.server=true;throw ie}token=r.token;currentUser=r.user;sessionStorage.setItem('a4t',token);sessionStorage.setItem('a4u',JSON.stringify(currentUser));enter(r)}catch(e){msg('lm',(e.server?'':'Cannot reach the Apps Script endpoint: ')+e.message,'error')}finally{b.disabled=false;b.textContent='Sign in';const lc=b.closest('.login-card');if(lc)lc.classList.remove('busy')}}
 setTimeout(()=>{requestJson(API+'?action=health').catch(()=>{})},100);
 function togglePassword(){const input=document.getElementById('lp');const btn=document.querySelector('.login-card .show-password');const showing=input.type==='text';input.type=showing?'password':'text';btn.textContent=showing?'Show':'Hide';btn.setAttribute('aria-label',showing?'Show password':'Hide password')}
 function toggleAdminPassword(){const input=document.getElementById('mp');const btn=input.parentElement.querySelector('.show-password');const showing=input.type==='text';input.type=showing?'password':'text';btn.textContent=showing?'Show':'Hide';btn.setAttribute('aria-label',showing?'Show password':'Hide password')}
@@ -213,7 +219,7 @@ async function mtApply(){
   S.mtPending={};
   S.mtDayData={};
   renderMonthlyGrid();
-  msg('mtmsg','Applied to '+list.length+' day(s). Syncing with server…','success');
+  msg('mtmsg','Applied to '+list.length+' day(s). Saving…','success');
 
   // Save in the background, one job at a time so jobs never overlap.
   S.mtInflight=(S.mtInflight||0)+1;
